@@ -31,10 +31,10 @@ shell that runs terraform).
   and the NSG /32 is stale: `./server.sh allow-ip` (one az call, no
   terraform, no drift).
 - cloud-init runs at FIRST BOOT ONLY — editing `cloud-init.yaml` after the
-  VM exists forces VM replacement on apply. Test config changes locally
-  first: `multipass launch noble --cloud-init azure-build-server/cloud-init.yaml`.
-  Boot marker: `/var/lib/cloud/instance/devbox-ready`; logs:
-  `/var/log/cloud-init-output.log` (+ `/var/log/cloud-init.log`).
+  VM exists forces VM replacement on apply. Validate edits with
+  `cloud-init schema --config-file azure-build-server/cloud-init.yaml`
+  before applying. Boot marker: `/var/lib/cloud/instance/devbox-ready`;
+  logs: `/var/log/cloud-init-output.log` (+ `/var/log/cloud-init.log`).
 - The idle watchdog's role assignment needs the deploying account to hold
   Owner/User-Access-Administrator; role propagation can 403 for a few
   minutes after apply — it self-heals on the next 5-min timer tick.
