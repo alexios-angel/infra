@@ -51,6 +51,11 @@ case "${1:-status}" in
       echo "Host $vm"
       echo "  HostName $ip"
       echo "  User ubuntu"
+      # the post-reboot ritual (ssh-agent -a ~/.ssh/build-agent.sock; ssh-add)
+      # parks the passphrase-loaded key here; pointing the alias at it means
+      # no SSH_AUTH_SOCK plumbing in any script. Falls back to identity
+      # files when the sock is absent.
+      echo "  IdentityAgent ~/.ssh/build-agent.sock"
       echo "# END $vm"
     } >>"$tmp"
     mv "$tmp" "$cfg"
