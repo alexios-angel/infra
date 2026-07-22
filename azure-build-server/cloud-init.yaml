@@ -1,0 +1,260 @@
+#cloud-config
+# Provisioning for the general-purpose devbox (Ubuntu 24.04) shared by ALL
+# projects — deliberately PROJECT-AGNOSTIC. House rules:
+#  - everything installable via apt comes from apt; third-party repos are
+#    declared below, each scoped to its own signed-by keyring (never apt-key)
+#  - linuxbrew is bootstrapped but installs NOTHING here: a project that
+#    needs a brew-only dep declares it in ITS OWN Brewfile and converges with
+#    `brew bundle --file=...` at build time (embed's
+#    scripts/build-clang/Brewfile is the model)
+#  - every project tree lives under ~/projects/<name>; scratch build trees
+#    (e.g. ~/llvm-build, ~/dist) stay in $HOME
+#  - the box deallocates ITSELF after 30 min without user activity via
+#    devbox-idle-check + the VM's managed identity (no credentials on disk)
+# The embedded PGP material is PUBLIC signing keys only — safe to commit.
+
+ssh_pwauth: false
+
+apt:
+  sources:
+    # cloudflared: Cloudflare's own repo (keyring embedded via write_files)
+    cloudflared:
+      source: "deb [signed-by=/usr/share/keyrings/cloudflare-main.gpg] https://pkg.cloudflare.com/cloudflared noble main"
+    # gh: GitHub's official repo — noble's archive version lags far behind
+    github-cli:
+      source: "deb [arch=amd64 signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main"
+    # NIGHTLY neovim: the PPA's version outranks noble's, so apt picks it
+    neovim-nightly:
+      source: "deb [signed-by=$KEY_FILE] https://ppa.launchpadcontent.net/neovim-ppa/unstable/ubuntu noble main"
+      key: |
+        -----BEGIN PGP PUBLIC KEY BLOCK-----
+        Comment: Hostname: 
+        Version: Hockeypuck 2.2
+        
+        xsFNBFSJzaMBEACxpSOtdO1I0N1Ett33RszDCmK7erP77pcABb6c/7fHhkqoaOq0
+        EHSUnn2STQPopBtTuVY08waV2AWnGcB664pGTJ3r2c8CSBY21RweHbzyDqPG/gGw
+        jpJdrTPXlIUrTn7DI2y36sarn1cYel4dw+jdPnhtJ34xU6/EffS2532q9cHlGCmS
+        gwtmZ1cHvW2XjJj7UPpc7t2NnQ6NYNeRoKSVh2Xf8kvV74IKdkJFb62iTd7aNbCg
+        83m4dBA1nI6mC6KP+rmQHcDtN8tZc8cQlN0ho7U3CMtLPrCdhDFl+vXEj2EbQDIn
+        GTCi4pmQYirPf49i3CV3as6xGxshuxF9dbfa11/QgMcHrnO2mw4WzFrBW2iT6EDh
+        KlxVskPNZYZlU8eJr46KdCj01YfPkXtSqBHSjmlnnDSUu+WwT2j07gwO4lAnZCWE
+        2MXJaxi6y+0rijbH89uw8mXOq4Q04/9cvn4AFzRaCnB1PnLWOhoqtuXUvp4dCBK0
+        PEtfFQcSG7DL3tRQJIJ1nasVsy+6NJ5QUdexFxvZp7wYsEerrdZTEwn37vYL4oXa
+        hD3lzdNBfQgmdWcXysjjq8OcQj6EI4WT033q/QGkoueH2w45OWL8bORN1ALnJO9W
+        rwIfHpnfiAIc+GLSZgcrEJo+KQ38FcPhIkdLEMzqLt3U1z4iO5bnxeR1kwARAQAB
+        zSFMYXVuY2hwYWQgUFBBIGZvciBOZW92aW0gUFBBIFRlYW3CwXgEEwECACIFAlSJ
+        zaMCGwMGCwkIBwMCBhUIAgkKCwQWAgMBAh4BAheAAAoJEFX5b8+CMbbdkmAP+gLR
+        icU+SOQ83Ay/xBpp49fWKTgJCzHYFM8jAdRH55U3/oExVaxvyqBNiOS08ytsPOdc
+        LO2Td2azWzA4VlhZHhyQqV/ASWK0vBceM2G7vjsTwS8R4X5vkIIt+ON/PJg/Xp2u
+        v+4AjsTsDbt5PQ+R4QXA1jEK1weOWd+Qm8xkEAGdR3Cw+fSeJ1+GBQRYc/X9r7i9
+        GkASOy+53Y3GtZwD9P7ctmTcCxlKFhJWCYuuWzKGj4FHWPvN4vcdRFcHyXsaXr51
+        CAk1y6B14rlviWHibjVXS0MTlKjfvIF3wR5z8abjl+H01Hwxmb1i+GtsMfhoRjh4
+        LS99TkiHa3T11ok0niJN8OOfe5kY/vwutFLzOBwOxqhMZVGKq5vCiKh9/aviOIfw
+        7Sbht1i2+0+EH6GHmidnaG1qUte0rhpOwJgyxSw5sFQjiOhnokn5YAOmsxQ9QCd+
+        aRWNGYUezEvX/+2JhLWZAewD2ACb1g2K5LzXt8p82MT3f2zONoXqK2H2SuSY/Vq/
+        LMyEoRc61o24lMuKDHL+JgTZfoNW/LB1nEehclY+gk0R2/B7F2ccEiU0fiYdcREP
+        KGLwRQBnDx3EI0EFTjZSeyj5kqovR0YtH52gVPEdDzPXOSqBmBo9CDdAyxUU45PM
+        2A81qlZxoFCBYDgBAXVqUdRfNikKWNiszh4RE4Q3
+        =IVmU
+        -----END PGP PUBLIC KEY BLOCK-----
+    # fastfetch is not in noble's archive at all
+    fastfetch:
+      source: "deb [signed-by=$KEY_FILE] https://ppa.launchpadcontent.net/zhangsongcui3371/fastfetch/ubuntu noble main"
+      key: |
+        -----BEGIN PGP PUBLIC KEY BLOCK-----
+        Comment: Hostname: 
+        Version: Hockeypuck 2.2
+        
+        xsFNBGXC33sBEADqChRifM9aJb4sJnn9jKV4mdt9Rj90OAYfySPuVyVX+dDKWP8X
+        ATjtDDNJeROme4+05iSt1SAey9W0ugYo8ft2LeMCjWlog6mlM3EPJ4UelEVBOGpF
+        su/cgTZbu0A6bHIliFeQhDavd897Dr8ZH9+QIPumNyHB+mtd+U/S9qggZtWs6seu
+        WJo2eRYXC4ubJ52rjpCAT2bSM2Rn7YATAKxYl35+ef4ytb5i+wkgUVD55AuYzNL7
+        eMzSOY4iYF9SWUrYxtNKq2AH6IZ6G49Vjt0yDcH8wl2wImvKcI4hwQYbxHXwBj2l
+        E7msT65gHyFocRrTp1XvrOGms6iqE3GjXy7CwiWKtxK/DLFx8Pf2A27E+95OKsrj
+        Cs9g+g5H5625QSp7xgocaNtmHz+gTEGkstDIiAZQ2/tp0jN4sPpFKEp03oMxr9+8
+        iON68SD0lPRRfPBwQat0CkkUK1YInnw1ZhPQJJk8XW8mxPYsbQ+hNofUo0gN1dX3
+        T/1RNi8x2zDiNP5lyoSzX0V2G7kIvL+G0xUnhMauNXqQcLXfKukDL9Vf4q/TWmAS
+        wQhJ2oCeRrdlOWhBHOoFNUSpt2PxRHqBd5SMCh29HIdN2CLT3XitPj10ozyrXVGZ
+        FLKL1uZqZar03ofmw/qNYXG0smG12LsjCjWDtX94Cg+/Fl1dVYfC3ziPzQARAQAB
+        zRtMYXVuY2hwYWQgUFBBIGZvciBDYXJ0ZXIgTGnCwY4EEwEKADgWIQTrZe4Z2ALz
+        6xoTz+R+Lly01IZfIQUCZcLfewIbAwULCQgHAgYVCgkICwIEFgIDAQIeAQIXgAAK
+        CRB+Lly01IZfIbRvD/0Zx9paqlDJWwCTd+1b9kZPOWeylBvQ5A8rvJb7RyccX6AR
+        gXj1zWkc76OV1A3TiwVqsFhX357jG7TJ2HkAcld7EwhbKjne3nmtCLUwSFdJERP2
+        dpobBAtmZV7g4dEHlHH3nFRcowrsAFwlHTp72Iak39WVjxR/XQDX9yeTg8H0hJZ9
+        veh8slwcPw0ORevqXnOrKYM3uolLoBEUXe2Y4Zc/gBqN6OnK6uv0ISfG/zG3yOJt
+        Z1HJ6ITamqHv8QDjg2rbxYt2VtvuOe/8T34nI6otdtJUDNDllLNn/5Td1YQsdgUg
+        Rgf9bMM7X8LTJW/2zc++I1XCJToVFuXdD/IcIB+e10Y8yrhBjer3R4wtoW7ubXG9
+        SmURCLfu9JxmDjl5T+Fsg4YDlSIih02P3SitwPWG0AvqYWDsKGfx5tF5/28wjHoM
+        bsi1xxAxnlYuzcZT/Xb6ZO4wMcV5QiRbfVHAACt69vyABXfFlqJ8ScSt8pGsR9bl
+        dCRlrLFQh13NDnSJQtnO3mx4eF1ir1iO4hjJFTDhhE8QbImS3w1hEhZuHGVXFo8a
+        xsChEDlop6GNFFUUnOwS3X+sKVQjL9Emiv1DkXTSnJmDwKQyOr6T3uTgzT5o9Gt8
+        SrnkCBlxrqZHzaUJuSGV0YxxWUAexlj4nlYwoZz5uXTNikhD38q+O9ZNG4SQTg==
+        =yPNc
+        -----END PGP PUBLIC KEY BLOCK-----
+
+package_update: true
+packages:
+  # brew's own prerequisites + rsync so the first sync works regardless
+  - build-essential
+  - procps
+  - curl
+  - file
+  - git
+  - rsync
+  - ca-certificates
+  - gnupg
+  # build toolset (noble's cmake 3.28 matches what the old servers ran)
+  - cmake
+  - ninja-build
+  - pkg-config
+  - python3
+  - ccache
+  - unzip
+  - zstd
+  - htop
+  - xz-utils
+  - zip
+  # glm lands in /usr/include — clang finds <glm/glm.hpp> with no extra flag
+  - libglm-dev
+  # LLVM suite (noble's v18; a project wanting newer brews it via Brewfile)
+  - clang
+  - llvm
+  - lld
+  - lldb
+  - clangd
+  - clang-format
+  - clang-tidy
+  # dev environment
+  - cloudflared
+  - zsh
+  - fastfetch
+  - bat
+  - neovim
+  - ripgrep
+  - xsel
+  - gh
+  # security: sshd brute-force jail + automatic security patches
+  - fail2ban
+  - unattended-upgrades
+
+write_files:
+  # Cloudflare + GitHub CLI apt signing keyrings (binary, hence base64 here
+  # rather than inline armored keys under apt.sources)
+  - path: /usr/share/keyrings/cloudflare-main.gpg
+    permissions: "0644"
+    encoding: b64
+    content: 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
+  - path: /usr/share/keyrings/githubcli-archive-keyring.gpg
+    permissions: "0644"
+    encoding: b64
+    content: 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
+
+  # Defense in depth on top of key-only auth + the NSG /32: no passwords, no
+  # root logins, no X11. (Written before sshd first starts on first boot.)
+  - path: /etc/ssh/sshd_config.d/99-hardening.conf
+    permissions: "0644"
+    content: |
+      PasswordAuthentication no
+      KbdInteractiveAuthentication no
+      PermitRootLogin no
+      X11Forwarding no
+
+  # Idle watchdog: deallocate (compute billing stops, disk persists) after
+  # IDLE_MINUTES with no user activity. Activity = any ssh session (pty via
+  # `who`, or non-pty exec like a remote build — the "sshd: user@" match) OR
+  # 1-min load >= LOAD_FLOOR (a detached/nohup'd build keeps the box alive).
+  # Auth: managed-identity token from IMDS; the identity's custom role can
+  # deallocate this VM and nothing else. All IDs come from IMDS — nothing
+  # environment-specific is baked into this file.
+  - path: /usr/local/sbin/devbox-idle-check
+    permissions: "0755"
+    content: |
+      #!/usr/bin/env bash
+      set -euo pipefail
+
+      IDLE_MINUTES=30
+      LOAD_FLOOR=0.5
+      STAMP=/run/devbox-last-active
+
+      # /run is tmpfs: first check after any boot starts the clock fresh
+      [ -f "$STAMP" ] || { touch "$STAMP"; exit 0; }
+
+      sessions=$({ who; pgrep -a 'sshd' | grep -E 'sshd[^ ]*: [^ ]+@' || true; } | wc -l)
+      load=$(awk '{print $1}' /proc/loadavg)
+      if [ "$sessions" -gt 0 ] || awk -v l="$load" -v f="$LOAD_FLOOR" 'BEGIN{exit !(l>=f)}'; then
+        touch "$STAMP"
+        exit 0
+      fi
+
+      age=$(( $(date +%s) - $(stat -c %Y "$STAMP") ))
+      if [ "$age" -lt $(( IDLE_MINUTES * 60 )) ]; then
+        echo "no activity for ${age}s (deallocate at $(( IDLE_MINUTES * 60 ))s)"
+        exit 0
+      fi
+
+      imds() {
+        curl -fsS -H Metadata:true \
+          "http://169.254.169.254/metadata/instance/compute/$1?api-version=2021-02-01&format=text"
+      }
+      sub=$(imds subscriptionId); rg=$(imds resourceGroupName); vm=$(imds name)
+      token=$(curl -fsS -H Metadata:true \
+        'http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=https%3A%2F%2Fmanagement.azure.com%2F' \
+        | python3 -c 'import json,sys; print(json.load(sys.stdin)["access_token"])')
+
+      echo "idle ${age}s >= ${IDLE_MINUTES}m: deallocating $vm"
+      curl -fsS -X POST -d '' -H "Authorization: Bearer $token" \
+        "https://management.azure.com/subscriptions/$sub/resourceGroups/$rg/providers/Microsoft.Compute/virtualMachines/$vm/deallocate?api-version=2023-09-01"
+
+  - path: /etc/systemd/system/devbox-idle.service
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=Deallocate the devbox after 30 min without user activity
+      After=network-online.target
+
+      [Service]
+      Type=oneshot
+      ExecStart=/usr/local/sbin/devbox-idle-check
+
+  - path: /etc/systemd/system/devbox-idle.timer
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=Run the devbox idle check every 5 minutes
+
+      [Timer]
+      OnBootSec=5min
+      OnUnitActiveSec=5min
+
+      [Install]
+      WantedBy=timers.target
+
+runcmd:
+  - set -ex
+  # oh-my-zsh for the ubuntu user (installer pinned to a commit, not master),
+  # mirroring the local setup: gentoo theme, stock git plugin, then make zsh
+  # the login shell
+  - |
+    sudo -iu ubuntu sh -c 'sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/e1d1f0dcd53d87096e5bfa48cb1c30d37cb7e5bf/tools/install.sh)" "" --unattended'
+    sudo -iu ubuntu sed -i 's/^ZSH_THEME=.*/ZSH_THEME="gentoo"/' /home/ubuntu/.zshrc
+    chsh -s /usr/bin/zsh ubuntu
+  # linuxbrew bootstrap (installer pinned to a commit), package-empty by
+  # design; shellenv into every shell init that might run a build — including
+  # .zprofile, which oh-my-zsh leaves alone
+  - |
+    sudo -iu ubuntu bash <<'EOSU'
+    set -euxo pipefail
+    if [ ! -x /home/linuxbrew/.linuxbrew/bin/brew ]; then
+      NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/99e13e96cbbdc1ac1ac09c0a40b450bf219ef3aa/install.sh)"
+    fi
+    for f in ~/.profile ~/.bashrc ~/.zprofile; do
+      grep -qs 'linuxbrew.*shellenv' "$f" || echo 'eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"' >> "$f"
+    done
+    EOSU
+  # box-level ccache policy (the shared cache serves every project)
+  - sudo -Hu ubuntu ccache --set-config max_size=30G
+  # the one directory convention every project relies on
+  - install -d -o ubuntu -g ubuntu /home/ubuntu/projects
+  - systemctl daemon-reload
+  - systemctl enable --now devbox-idle.timer
+  - touch /var/lib/cloud/instance/devbox-ready
