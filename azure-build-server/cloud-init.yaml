@@ -116,16 +116,13 @@ packages:
   - zip
   # glm lands in /usr/include — clang finds <glm/glm.hpp> with no extra flag
   - libglm-dev
-  # ctbrowser's compiled dependencies. APT-FIRST: noble packages all three, so
-  # none of them needs the Brewfile. Boost.URL is a SEPARATE package from
-  # libboost-dev and is not pulled in by it — a box with libboost1.83-dev alone
-  # fails at configure with "Could not find a package configuration file
-  # provided by boost_url", which is exactly how the first build here died.
-  - libboost-url-dev
-  # PNG and JPEG decode inside the SDL-free engine (they used to arrive through
-  # SDL3_image, which this box deliberately does not ship)
-  - libpng-dev
-  - libturbojpeg0-dev
+  # NO PROJECT LIBRARIES HERE. ctbrowser's compiled deps (Boost.URL, libpng,
+  # libjpeg-turbo) were briefly apt packages and moved to its own Brewfile on
+  # 2026-08-01: noble's versions are too old to build against — libjpeg-turbo
+  # 2.1.5 predates the API the engine uses, and apt splits boost_url out of
+  # libboost-dev so a box can have Boost and still fail to find it. Brew ships
+  # current versions and the same ones the development machine has. This list
+  # stays the BOX's furniture; a project's libraries belong to the project.
   # LLVM suite (noble's v18; a project wanting newer brews it via Brewfile)
   - clang
   - llvm
